@@ -4,58 +4,57 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use iced::widget::{button, column, container, row, scrollable, text, Image};
-use iced::{Element, Length, Color, Theme, Border};
+use iced::widget::{button, column, container, row, scrollable, text};
+use iced::{Alignment, Color, Element, Length};
 
-# pub enum Message {
-    AppClicked(String),  // app name or path
+pub enum Message {
+    AppClicked(String),
 }
 
 pub fn view() -> Element<Message> {
-    let header = container(
+    let yellow_header = container(
         text("Soulless")
-            .size(24)
-            .style(Color::from_rgb(1.0, 0.95, 0.0)) // yellow
+            .size(28)
+            .style(Color::from_rgb(1.0, 0.95, 0.0))   // bright yellow
     )
-    .padding(12)
+    .padding(16)
+    .center_x(Length::Fill)
     .style(|_| container::Style {
-        background: Some(Color::from_rgb(0.1, 0.1, 0.1).into()),
+        background: Some(Color::from_rgb(0.12, 0.12, 0.12).into()),
         ..Default::default()
     });
 
-    let content = scrollable(
-        column((0..50).map(|i| {  // placeholder for now
-            button(
-                row![
-                    // Icon placeholder (we'll replace with real icons later)
-                    text("📦").size(28),
-                    text(format!("Folder {}", i)).size(16)
-                ]
-                .spacing(12)
-                .align_y(iced::Alignment::Center)
-            )
-            .width(Length::Fill)
-            .padding(12)
-            .style(|theme, status| {
-                let mut style = button::primary(theme, status);
-                if status.hovered {
-                    style.background = Some(Color::from_rgb(0.8, 0.2, 0.2).into()); // red hover
-                    style.border = Border {
-                        color: Color::from_rgb(0.9, 0.2, 0.2),
-                        width: 2.0,
-                        radius: 4.0.into(),
-                    };
-                }
-                style
+    let app_buttons = scrollable(
+        column(
+            (0..30).map(|i| {   // placeholder - we'll replace with real apps later
+                button(
+                    row![
+                        text("📦").size(32),                    // icon
+                        text(format!("App {}", i)).size(18)     // text
+                    ]
+                    .spacing(16)
+                    .align_y(Alignment::Center)
+                )
+                .width(Length::Fill)
+                .padding(14)
+                .style(|theme, status| {
+                    let mut s = button::primary(theme, status);
+                    if status.hovered {
+                        s.background = Some(Color::from_rgb(0.85, 0.15, 0.15).into()); // red hover
+                    }
+                    s
+                })
+                .into()
             })
-            .into()
-        }))
-        .spacing(4)
-    )
-    .spacing(4);
+        )
+        .spacing(6)
+    );
 
-    column! .spacing(0)
-        .width(Length::Fixed(440.0))
-        .height(Length::Fill)
-        .into()
+    column![
+        yellow_header,
+        app_buttons
+    ]
+    .width(Length::Fixed(460.0))      // nice narrow width
+    .height(Length::FillPortion(3))   // roughly 1/3 of the screen
+    .into()
 }
