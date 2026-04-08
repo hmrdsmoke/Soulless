@@ -1,1 +1,32 @@
-target/
+# Rust build artifacts
+/target
+**/target
+debug/
+release/
+
+# Cargo
+Cargo.lock          # You usually want this ignored in personal projects
+                    # (uncomment if you want to commit the lockfile)
+
+# Editor / IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary / log files
+*.log
+*.tmp
+
+# Soulless specific
+soulless.lock       # our single-instance lock file (optional, but clean to ignore)
+~/.local/share/soulless/   # vault data & lock (but usually we don't commit user data)
+
+# Rustfmt backups
+**/*.rs.bk
