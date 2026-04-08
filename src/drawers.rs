@@ -4,57 +4,62 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use iced::widget::{button, column, container, row, scrollable, text};
-use iced::{Alignment, Color, Element, Length};
+use iced::widget::{button, column, container, row, scrollable, text, text_input};
+use iced::{Alignment, Color, Element, Length, Padding};
+use crate::search::Message as SearchMessage;
 
-pub enum Message {
-    AppClicked(String),
-}
-
-pub fn view() -> Element<Message> {
-    let yellow_header = container(
+pub fn view(search: &crate::search::Search) -> Element<SearchMessage> {
+    let header = container(
         text("Soulless")
-            .size(28)
-            .style(Color::from_rgb(1.0, 0.95, 0.0))   // bright yellow
+            .size(32)
+            .style(|_| Color::from_rgb(1.0, 0.95, 0.0))
     )
-    .padding(16)
+    .padding(20)
     .center_x(Length::Fill)
     .style(|_| container::Style {
-        background: Some(Color::from_rgb(0.12, 0.12, 0.12).into()),
+        background: Some(iced::color!(0x1e, 0x1e, 0x1e).into()),
+        border: iced::border::rounded(8),
         ..Default::default()
     });
 
-    let app_buttons = scrollable(
+    let search_bar = text_input("Type to search...", &search.query)
+        .on_input(SearchMessage::QueryChanged)
+        .padding(14)
+        .size(18)
+        .style(|theme, status| text_input::default(theme, status));
+
+    let results = scrollable(
         column(
-            (0..30).map(|i| {   // placeholder - we'll replace with real apps later
+            search.filtered_apps().into_iter().map(|(name, exec)| {
                 button(
-                    row![
-                        text("📦").size(32),                    // icon
-                        text(format!("App {}", i)).size(18)     // text
-                    ]
-                    .spacing(16)
+                    row![] .spacing(16)
                     .align_y(Alignment::Center)
                 )
                 .width(Length::Fill)
                 .padding(14)
+                .on_press(SearchMessage::AppClicked(exec))
                 .style(|theme, status| {
                     let mut s = button::primary(theme, status);
                     if status.hovered {
-                        s.background = Some(Color::from_rgb(0.85, 0.15, 0.15).into()); // red hover
+                        s.background = Some(iced::color!(0xd4, 0x22, 0x22).into());
                     }
                     s
                 })
                 .into()
             })
         )
-        .spacing(6)
-    );
+        .spacing(4)
+        .padding(Padding::new(8.0))
+    )
+    .height(Length::Fill);
 
     column![
-        yellow_header,
-        app_buttons
+        header,
+        container(search_bar).padding(16),
+        results
     ]
-    .width(Length::Fixed(460.0))      // nice narrow width
-    .height(Length::FillPortion(3))   // roughly 1/3 of the screen
+    .spacing(8)
+    .width(Length::Fixed(460.0))
+    .height(Length::Fill)
     .into()
 }

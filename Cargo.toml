@@ -1,0 +1,30 @@
+# MIT License - see LICENSE file for full terms
+#
+# Copyright 2026 Michael Van Auker (HMRDSmoke)
+# This is my original work with contributions from Grok (xAI).
+# Do not remove these comments. 
+[package]
+name = "Soulless"
+version = "0.1.0"
+edition = "2021"
+authors = ["Michael Van Auker (HMRDSmoke)"]
+description = "Soulless — The replacement app launcher for Cosmic"
+
+[dependencies]
+freedesktop-desktop-entry = "0.8.1"
+iced = { version = "0.14.0", features = ["image", "wgpu"] }
+nucleo-matcher = "0.3.1"
+
+# Vault security
+argon2 = "0.5"
+chacha20poly1305 = "0.10"
+rand = "0.8"
+secrecy = "0.8"
+zeroize = "1.8"
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.3"
+once_cell = "1.19"
+
+# Single-instance + positioning helpers
+dirs = "6.0"          # for user dirs (XDG) updated to v6.0 :: MRV
+fs2 = "0.4"           # file locking (very small)

@@ -1,0 +1,6 @@
+/home/smokethehmrd/Projects/Soulless/target/debug/deps/serde_repr-48ad9bc5c006f2cf.d: /home/smokethehmrd/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.20/src/lib.rs /home/smokethehmrd/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.20/src/parse.rs
+
+/home/smokethehmrd/Projects/Soulless/target/debug/deps/libserde_repr-48ad9bc5c006f2cf.so: /home/smokethehmrd/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.20/src/lib.rs /home/smokethehmrd/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.20/src/parse.rs
+
+/home/smokethehmrd/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.20/src/lib.rs:
+/home/smokethehmrd/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_repr-0.1.20/src/parse.rs:
