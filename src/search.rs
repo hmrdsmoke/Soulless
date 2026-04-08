@@ -13,50 +13,83 @@ pub struct Search {
 
 impl Search {
     pub fn new() -> Self {
-        Self {
-            query: String::new(),
-        }
+        Self { query: String::new() }
     }
 
-    // Searches the ENTIRE library, not just current folder
-    pub fn search<'a>(&self, entire_library: &'a , max_results: usize) -> Vec<&'a crate::App> {
+    pub fn search<'a>(&self, all_apps: &'a , max_results: usize) -> Vec<&'a crate::App> {
         let query = self.query.trim().to_lowercase();
-
-        if query.is_empty() {
-            return entire_library.iter().take(max_results).collect();
-        }
-
         let mut results = Vec::with_capacity(max_results);
 
-        // Strict prefix first
-        for app in entire_library {
-            if app.name.to_lowercase().starts_with(&query) {
-                results.push(app);
-            }
+        if query.is_empty() {
+            return all_apps.iter().take(max_results).collect();
         }
 
-        // Then fuzzy to fill up to 200
-        if results.len() < max_results {
+        let char_count = query.len();
+
+        // 1–3 characters: First 10 strict, then 75/25 blend
+        if char_count <= 3 {
+            // Strict first (top 10)
+            for app in all_apps {
+                if app.name.to_lowercase().starts_with(&query) && results.len() < 10 {
+                    results.push(app);
+                }
+            }
+
+            // 75% strict / 25% fuzzy blend for the rest
             let remaining = max_results - results.len();
-            let mut matcher = Matcher::new(Default::default());
-            let pattern = Pattern::new(
-                &query,
-                CaseMatching::Smart,
-                Normalization::Smart,
-                AtomKind::Fuzzy,
-            );
+            let strict_count = (remaining as f32 * 0.75) as usize;
 
-            let mut fuzzy: Vec<(u32, &crate::App)> = entire_library.iter()
-                .filter(|app| !results.iter().any(|r| r.name == app.name))
-                .filter_map(|app| {
-                    let haystack = Utf32String::from(app.name.as_str());
-                    pattern.score(&haystack, &mut matcher)
-                        .map(|score| (score, app))
-                })
-                .collect();
+            // More strict matches
+            for app in all_apps {
+                if !results.contains(&app) && app.name.to_lowercase().starts_with(&query) {
+                    if results.len() < max_results {
+                        results.push(app);
+                    }
+                }
+            }
 
-            fuzzy.sort_by(|a, b| b.0.cmp(&a.0));
-            results.extend(fuzzy.into_iter().take(remaining).map(|(_, app)| app));
+            // Fuzzy to fill remaining 25%
+            if results.len() < max_results {
+                let fuzzy_needed = max_results - results.len();
+                let mut matcher = Matcher::new(Default::default());
+                let pattern = Pattern::new(&query, CaseMatching::Smart, Normalization::Smart, AtomKind::Fuzzy);
+
+                let mut fuzzy_results: Vec<(u32, &crate::App)> = all_apps.iter()
+                    .filter(|app| !results.iter().any(|r| r.name == app.name))
+                    .filter_map(|app| {
+                        let haystack = Utf32String::from(app.name.as_str());
+                        pattern.score(&haystack, &mut matcher).map(|score| (score, app))
+                    })
+                    .collect();
+
+                fuzzy_results.sort_by(|a, b| b.0.cmp(&a.0));
+                results.extend(fuzzy_results.into_iter().take(fuzzy_needed).map(|(_, app)| app));
+            }
+        } 
+        // 4+ characters: 100% strict until no more found, then fuzzy
+        else {
+            for app in all_apps {
+                if app.name.to_lowercase().starts_with(&query) {
+                    results.push(app);
+                }
+            }
+
+            if results.len() < max_results {
+                let remaining = max_results - results.len();
+                let mut matcher = Matcher::new(Default::default());
+                let pattern = Pattern::new(&query, CaseMatching::Smart, Normalization::Smart, AtomKind::Fuzzy);
+
+                let mut fuzzy: Vec<(u32, &crate::App)> = all_apps.iter()
+                    .filter(|app| !results.iter().any(|r| r.name == app.name))
+                    .filter_map(|app| {
+                        let haystack = Utf32String::from(app.name.as_str());
+                        pattern.score(&haystack, &mut matcher).map(|score| (score, app))
+                    })
+                    .collect();
+
+                fuzzy.sort_by(|a, b| b.0.cmp(&a.0));
+                results.extend(fuzzy.into_iter().take(remaining).map(|(_, app)| app));
+            }
         }
 
         results.truncate(max_results);
