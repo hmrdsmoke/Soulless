@@ -11,20 +11,36 @@ authors = ["Michael Van Auker (HMRDSmoke)"]
 description = "Soulless — The replacement app launcher for Cosmic"
 
 [dependencies]
-freedesktop-desktop-entry = "0.8.1"
-iced = { version = "0.14.0", features = ["image", "wgpu"] }
-nucleo-matcher = "0.3.1"
+freedesktop-desktop-entry = "0.8"
+# changed = "0.8.1" to = "0.8" :: MRV 
+iced = { version = "0.14", features = ["image", "wgpu"] }
+# changed version = from "0.14.0" to "0.14" :: MRV
+nucleo-matcher = "0.3"
+# changed = "0.3.1 to "0.3" :: MRV 
+
+# Single-instance + positioning helpers :: MRV
+dirs = "6.0"
+# for user dirs (XDG) updated to v6.0 :: MRV
+fs2 = "0.4"
+walkdir = "2.5.0"
+# file locking (very small) :: MRV
+# moved from bottom of page to position in now :: MRV
 
 # Vault security
-argon2 = "0.5"
-chacha20poly1305 = "0.10"
-rand = "0.8"
-secrecy = "0.8"
-zeroize = "1.8"
-serde = { version = "1.0", features = ["derive"] }
-bincode = "1.3"
-once_cell = "1.19"
+# removing vault security temporaliy :: MRV
+# argon2 = "0.5" :: MRV
+# chacha20poly1305 = "0.10" :: MRV
+# rand = "0.8" :: MRV
+# secrecy = "0.8" :: MRV
+# zeroize = "1.8" :: MRV
+# serde = { version = "1.0", features = ["derive"] } :: MRV
+# bincode = "1.3" :: MRV
+# once_cell = "1.19" :: MRV
 
-# Single-instance + positioning helpers
-dirs = "6.0"          # for user dirs (XDG) updated to v6.0 :: MRV
-fs2 = "0.4"           # file locking (very small)
+[profile.release]
+# added profile.release :: MRV
+lto = "thin"
+# changed from 1to to lto :: MRV
+# added 1to = "thin" :: MRV
+opt-level = 3
+# opt-level = 3 :: MRV

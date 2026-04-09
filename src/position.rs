@@ -29,8 +29,8 @@ impl DockPosition {
     /// Future: read actual monitor geometry via winit/wayland for multi-monitor perfection.
     pub fn window_position(&self) -> Point {
         let Size { width, height } = self.window_size();
-        let screen_w = 1920.0; // TODO: get real screen size
-        let screen_h = 1080.0;
+        let screen_w = 2560.0; // your actual screen width
+        let screen_h = 1440.0; // your actual screen height
         let margin = 10.0; // gap from edge
 
         match self {
