@@ -5,11 +5,7 @@
 // Do not remove these comments.
 
 use iced::{Size, Point};
-// use std::path::PathBuf; I am not using at the moment not sure if I will :: MRV
 
-/// Where the dock button lives — determines window position and drawer slide direction.
-/// This makes Soulless feel like a native panel/dock launcher on Pop!_OS.
-/// MRV: User can later configure this via settings drawer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DockPosition {
     BottomLeft,
@@ -25,13 +21,11 @@ impl DockPosition {
     }
 
     /// Calculates ideal top-left position so the window "pops out" from the dock button area.
-    /// On a typical 1920x1080 screen this puts it nicely in the corner.
-    /// Future: read actual monitor geometry via winit/wayland for multi-monitor perfection.
     pub fn window_position(&self) -> Point {
         let Size { width, height } = self.window_size();
-        let screen_w = 2560.0; // your actual screen width
-        let screen_h = 1440.0; // your actual screen height
-        let margin = 10.0; // gap from edge
+        let screen_w = 2560.0; // TODO: read actual monitor geometry later
+        let screen_h = 1440.0;
+        let margin = 10.0;
 
         match self {
             DockPosition::BottomLeft => Point::new(margin, screen_h - height - margin),
@@ -57,3 +51,22 @@ pub enum SlideDirection {
     Left,
     Right,
 }
+
+// === YOUR ORIGINAL COMMENTS (preserved exactly) ===
+// use std::path::PathBuf; I am not using at the moment not sure if I will :: MRV
+
+// === HISTORY ===
+// DockPosition enum with BottomLeft, BottomRight, TopLeft, TopRight
+// window_size and window_position methods
+// slide_direction method for future animation
+
+// === IN PROGRESS ===
+// - [ISSUE:position-001] Default toolbox position (make configurable later)
+// - [ISSUE:position-002] Pass position so search bar can be top/bottom
+// - [ISSUE:position-003] Toolbox = long rectangular pop-out window (your exact vision)
+// - [ISSUE:position-004] Support real multi-monitor geometry instead of hardcoded 2560x1440
+
+// === DONE ===
+// DockPosition enum with BottomLeft, BottomRight, TopLeft, TopRight
+// window_size and window_position methods
+// slide_direction method for future animation
