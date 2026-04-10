@@ -15,7 +15,6 @@ env:
 
 jobs:
   sync-board:
-    # prevents infinite loop when the workflow commits back to main
     if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
 
@@ -24,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract In Progress and Done from files
         id: extract
@@ -46,7 +46,7 @@ jobs:
             {
               echo "### $file"
               echo
-              # IN PROGRESS section without duplicating the DONE marker
+              # IN PROGRESS section - stop cleanly BEFORE the DONE marker
               sed -n '/=== IN PROGRESS ===/,/=== DONE ===/p' "$file" | sed '$d' || true
               echo
               # DONE section
@@ -60,205 +60,129 @@ jobs:
       - name: Create/update issues, write numbers back, and sync to Project board
         uses: actions/github-script@v7
         with:
-          # IMPORTANT:
-          # Use a classic PAT with `project` scope (and usually `repo` scope) because this is a USER Project v2:
-          # https://github.com/users/hmrdsmoke/projects/3/views/2
           github-token: ${{ secrets.PROJECT_TOKEN }}
           script: |
             const fs = require('fs');
             const { execSync } = require('child_process');
 
-            // --- Project configuration (Projects v2) ---
             const projectOwnerLogin = "hmrdsmoke";
             const projectNumber = 3;
-
-            // Confirmed by you:
-            // field: Status
-            // option: Done
-            // (Also requires the option "In Progress" to exist)
             const STATUS_FIELD_NAME = "Status";
             const STATUS_IN_PROGRESS = "In Progress";
             const STATUS_DONE = "Done";
+            const LABEL_AUTOMATED = "automated";
+            const LABEL_IN_PROGRESS = "in-progress";
+            const NON_FATAL_PROJECT_SYNC = true;
 
-            async function getProjectMeta() {
-              const data = await github.graphql(`
-                query($login:String!, $number:Int!) {
-                  user(login:$login) {
-                    projectV2(number:$number) {
-                      id
-                      fields(first:50) {
-                        nodes {
-                          ... on ProjectV2SingleSelectField {
-                            id
-                            name
-                            options { id name }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              `, { login: projectOwnerLogin, number: projectNumber });
-
-              const project = data.user.projectV2;
-              const statusField = project.fields.nodes.find(f => f && f.name === STATUS_FIELD_NAME);
-              if (!statusField) throw new Error(`Project field "${STATUS_FIELD_NAME}" not found`);
-
-              const inProgressOpt = statusField.options.find(o => o.name === STATUS_IN_PROGRESS);
-              if (!inProgressOpt) throw new Error(`Status option "${STATUS_IN_PROGRESS}" not found`);
-
-              const doneOpt = statusField.options.find(o => o.name === STATUS_DONE);
-              if (!doneOpt) throw new Error(`Status option "${STATUS_DONE}" not found`);
-
-              return {
-                projectId: project.id,
-                statusFieldId: statusField.id,
-                inProgressOptId: inProgressOpt.id,
-                doneOptId: doneOpt.id
-              };
-            }
-
-            const projectMeta = await getProjectMeta();
-
-            // Try to add issue to project; if already exists, locate existing item id
-            async function getOrCreateProjectItemId(contentNodeId) {
+            async function getProjectMetaOrNull() {
               try {
-                const added = await github.graphql(`
-                  mutation($projectId:ID!, $contentId:ID!) {
-                    addProjectV2ItemById(input:{ projectId:$projectId, contentId:$contentId }) {
-                      item { id }
-                    }
-                  }
-                `, { projectId: projectMeta.projectId, contentId: contentNodeId });
-
-                return added.addProjectV2ItemById.item.id;
-              } catch (e) {
-                // If already added, find it (first 100 items)
-                const existing = await github.graphql(`
-                  query($projectId:ID!) {
-                    node(id:$projectId) {
-                      ... on ProjectV2 {
-                        items(first:100) {
+                const data = await github.graphql(`
+                  query($login:String!, $number:Int!) {
+                    user(login:$login) {
+                      projectV2(number:$number) {
+                        id
+                        fields(first:50) {
                           nodes {
-                            id
-                            content { ... on Issue { id } }
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              name
+                              options { id name }
+                            }
                           }
                         }
                       }
                     }
                   }
-                `, { projectId: projectMeta.projectId });
+                `, { login: projectOwnerLogin, number: projectNumber });
 
-                const nodes = existing.node.items.nodes || [];
-                const match = nodes.find(n => n.content && n.content.id === contentNodeId);
-                if (!match) throw e;
-                return match.id;
+                const project = data?.user?.projectV2;
+                if (!project) throw new Error("Project not found");
+
+                const statusField = (project.fields?.nodes || []).find(f => f && f.name === STATUS_FIELD_NAME);
+                if (!statusField) throw new Error(`Field "${STATUS_FIELD_NAME}" not found`);
+
+                const inProgressOpt = (statusField.options || []).find(o => o.name === STATUS_IN_PROGRESS);
+                const doneOpt = (statusField.options || []).find(o => o.name === STATUS_DONE);
+
+                return {
+                  projectId: project.id,
+                  statusFieldId: statusField.id,
+                  inProgressOptId: inProgressOpt?.id,
+                  doneOptId: doneOpt?.id,
+                };
+              } catch (e) {
+                if (!NON_FATAL_PROJECT_SYNC) throw e;
+                console.warn(`[Project sync skipped]: ${e.message}`);
+                return null;
               }
             }
 
-            async function setProjectStatus(itemId, optionId) {
-              await github.graphql(`
-                mutation($projectId:ID!, $itemId:ID!, $fieldId:ID!, $optionId:String!) {
-                  updateProjectV2ItemFieldValue(input:{
-                    projectId:$projectId,
-                    itemId:$itemId,
-                    fieldId:$fieldId,
-                    value:{ singleSelectOptionId:$optionId }
-                  }) { projectV2Item { id } }
-                }
-              `, {
-                projectId: projectMeta.projectId,
-                itemId,
-                fieldId: projectMeta.statusFieldId,
-                optionId
-              });
+            async function findIssueByStableId(stableId) {
+              const safe = stableId.replace(/"/g, '\\"');
+              const q = `repo:${context.repo.owner}/${context.repo.repo} is:issue "Stable ID: ${safe}" label:${LABEL_AUTOMATED}`;
+              const res = await github.rest.search.issuesAndPullRequests({ q, per_page: 10 });
+              return res.data.items.find(i => !i.pull_request) || null;
             }
 
-            async function addToProjectAndSetStatus(contentNodeId, optionId) {
-              const itemId = await getOrCreateProjectItemId(contentNodeId);
-              await setProjectStatus(itemId, optionId);
-            }
+            const projectMeta = await getProjectMetaOrNull();
 
-            // --- Repo file discovery ---
             const files = execSync(`git ls-files "src/**/*.rs" "src/*.rs"`, { encoding: 'utf8' })
               .split('\n')
               .map(s => s.trim())
               .filter(Boolean);
 
-            async function findIssueByStableId(stableId) {
-              const safe = stableId.replace(/"/g, '\\"');
-              const q = `repo:${context.repo.owner}/${context.repo.repo} is:issue "Stable ID: ${safe}" label:automated`;
-              const res = await github.rest.search.issuesAndPullRequests({ q, per_page: 10 });
-              return res.data.items.find(i => !i.pull_request) || null;
-            }
-
-            function parseTaskLine(raw) {
-              // Match: // - [ISSUE:xxx] Title here
-              const match = raw.match(/^(\s*\/\/\s*[-*]\s+)(#(\d+)\s+)?(\[ISSUE:([^\]]+)\]\s+)(.+)\s*$/);
-              if (!match) return null;
-              return {
-                prefix: match[1],
-                existingNumber: match[3] || null,
-                stableId: `[ISSUE:${match[5]}]`,
-                title: match[6].trim(),
-              };
-            }
-
             for (const file of files) {
               let content = fs.readFileSync(file, 'utf8');
               const lines = content.split('\n');
               let changed = false;
-
-              let section = null; // 'in-progress' | 'done' | null
+              let inProgress = false;
 
               for (let i = 0; i < lines.length; i++) {
-                const trimmed = lines[i].trim();
+                const raw = lines[i];
+                const trimmed = raw.trim();
 
-                if (trimmed.includes('=== IN PROGRESS ===')) { section = 'in-progress'; continue; }
-                if (trimmed.includes('=== DONE ===')) { section = 'done'; continue; }
-                if (!section) continue;
-
-                const parsed = parseTaskLine(lines[i]);
-                if (!parsed) continue;
-
-                if (section === 'done') {
-                  // Move existing automated issues to Done (does not create new issues for Done items)
-                  const issue = await findIssueByStableId(parsed.stableId);
-                  if (issue) {
-                    await addToProjectAndSetStatus(issue.node_id, projectMeta.doneOptId);
-                    console.log(`Moved ${parsed.stableId} -> Status=Done (issue #${issue.number})`);
-                  }
+                if (trimmed.includes('=== IN PROGRESS ===')) {
+                  inProgress = true;
+                  continue;
+                }
+                if (trimmed.includes('=== DONE ===')) {
+                  inProgress = false;
                   continue;
                 }
 
-                // section === 'in-progress'
-                let issue = await findIssueByStableId(parsed.stableId);
+                if (!inProgress) continue;
+
+                const match = raw.match(/^(\s*\/\/\s*[-*]\s+)(#(\d+)\s+)?(\[ISSUE:([^\]]+)\]\s+)(.+)\s*$/);
+                if (!match) continue;
+
+                const prefix = match[1];
+                const existingNumber = match[3];
+                const stableId = `[ISSUE:${match[5]}]`;
+                const title = match[6].trim();
+
+                if (existingNumber) continue;
+
+                let issue = await findIssueByStableId(stableId);
                 let issueNumber;
 
                 if (!issue) {
-                  const body = `Stable ID: ${parsed.stableId}\nSource: \`${file}\`\n\n(Generated automatically from IN PROGRESS comments.)`;
+                  const body = `Stable ID: ${stableId}\nSource: \`${file}\`\n\n(Generated automatically from IN PROGRESS comments.)`;
                   const created = await github.rest.issues.create({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    title: parsed.title,
-                    body,
-                    labels: ['automated', 'in-progress']
+                    title: title,
+                    body: body,
+                    labels: [LABEL_AUTOMATED, LABEL_IN_PROGRESS]
                   });
-                  issue = created.data;
-                  issueNumber = issue.number;
-                  console.log(`Created issue #${issueNumber} for ${parsed.stableId}`);
+                  issueNumber = created.data.number;
+                  console.log(`Created issue #${issueNumber} for ${stableId}`);
                 } else {
                   issueNumber = issue.number;
-                  console.log(`Found existing issue #${issueNumber} for ${parsed.stableId}`);
+                  console.log(`Found existing issue #${issueNumber} for ${stableId}`);
                 }
 
-                await addToProjectAndSetStatus(issue.node_id, projectMeta.inProgressOptId);
-
-                // Write back #number if missing
-                if (!parsed.existingNumber) {
-                  lines[i] = `${parsed.prefix}#${issueNumber} ${parsed.stableId} ${parsed.title}`;
-                  changed = true;
-                }
+                lines[i] = `${prefix}#${issueNumber} ${stableId} ${title}`;
+                changed = true;
               }
 
               if (changed) {
@@ -268,6 +192,15 @@ jobs:
             }
 
       - name: Commit and push updated issue numbers
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.nore
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git add src/**/*.rs src/*.rs || true
+          git commit -m "chore: sync issue numbers from code comments [skip ci]"
+          git push
