@@ -61,10 +61,10 @@ pub enum SlideDirection {
 // slide_direction method for future animation
 
 // === IN PROGRESS ===
-// - [ISSUE:position-001] Default toolbox position (make configurable later)
-// - [ISSUE:position-002] Pass position so search bar can be top/bottom
-// - [ISSUE:position-003] Toolbox = long rectangular pop-out window (your exact vision)
-// - [ISSUE:position-004] Support real multi-monitor geometry instead of hardcoded 2560x1440
+// - #54 [ISSUE:position-001] Default toolbox position (make configurable later)
+// - #55 [ISSUE:position-002] Pass position so search bar can be top/bottom
+// - #56 [ISSUE:position-003] Toolbox = long rectangular pop-out window (your exact vision)
+// - #57 [ISSUE:position-004] Support real multi-monitor geometry instead of hardcoded 2560x1440
 
 // === DONE ===
 // DockPosition enum with BottomLeft, BottomRight, TopLeft, TopRight

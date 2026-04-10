@@ -62,10 +62,10 @@ pub fn view(search: &crate::search::Search) -> Element<'_, SearchMessage> {
 // Started implementing your real drawer vision: top part stays as toolbox handle, results use square grid.
 
 // === IN PROGRESS ===
-// - [ISSUE:drawer-001] The slide out square drawer where your daily apps live
-// - [ISSUE:drawer-002] Not crashing when clicked due to a pop os window error
-// - [ISSUE:drawer-003] Style colors shadowing and shading background icons
-// - [ISSUE:drawer-004] Make launcher sharp square by default (option later for Pop!_OS style)
+// - #44 [ISSUE:drawer-001] The slide out square drawer where your daily apps live
+// - #45 [ISSUE:drawer-002] Not crashing when clicked due to a pop os window error
+// - #46 [ISSUE:drawer-003] Style colors shadowing and shading background icons
+// - #47 [ISSUE:drawer-004] Make launcher sharp square by default (option later for Pop!_OS style)
 
 // === DONE ===
 // Top part (header + search) stays as the "toolbox top/handle"

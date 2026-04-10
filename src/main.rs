@@ -129,12 +129,12 @@ fn strip_desktop_placeholders(exec: &str) -> String {
 // Placeholder stripping moved from search to main.rs
 
 // === IN PROGRESS ===
-// - [ISSUE:main-001] Click outside or Esc for launcher feel
-// - [ISSUE:main-002] Borderless = native dock/pop-up feel
-// - [ISSUE:main-003] Default toolbox position (make configurable later)
-// - [ISSUE:main-004] Auto-close after launch (classic launcher behavior)
-// - [ISSUE:main-005] Pass position so search bar can be top/bottom
-// - [ISSUE:main-006] Toolbox = long rectangular pop-out window (your exact vision)
+// - #48 [ISSUE:main-001] Click outside or Esc for launcher feel
+// - #49 [ISSUE:main-002] Borderless = native dock/pop-up feel
+// - #50 [ISSUE:main-003] Default toolbox position (make configurable later)
+// - #51 [ISSUE:main-004] Auto-close after launch (classic launcher behavior)
+// - #52 [ISSUE:main-005] Pass position so search bar can be top/bottom
+// - #53 [ISSUE:main-006] Toolbox = long rectangular pop-out window (your exact vision)
 
 // === DONE ===
 // Single-instance check

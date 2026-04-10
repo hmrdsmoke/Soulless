@@ -152,10 +152,10 @@ impl Vault {
 // Explained borrowing mechanics inline
 
 // === IN PROGRESS ===
-// - [ISSUE:vault-001] Add real salt field to Vault struct (remove dummy_salt)
-// - [ISSUE:vault-002] Add proper error types instead of String
-// - [ISSUE:vault-003] Add list/delete entry methods
-// - [ISSUE:vault-004] Add encryption key rotation / re-derive on password change
+// - #58 [ISSUE:vault-001] Add real salt field to Vault struct (remove dummy_salt)
+// - #59 [ISSUE:vault-002] Add proper error types instead of String
+// - #60 [ISSUE:vault-003] Add list/delete entry methods
+// - #61 [ISSUE:vault-004] Add encryption key rotation / re-derive on password change
 
 // === DONE ===
 // Added Serialize/Deserialize derives so bincode works
