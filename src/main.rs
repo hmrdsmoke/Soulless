@@ -132,3 +132,4 @@ fn strip_desktop_placeholders(exec: &str) -> String {
 // Single-instance check
 // Simple single-instance guard using XDG data dir + exclusive file lock
 // Placeholder stripping moved to main.rs
+// test
