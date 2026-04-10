@@ -120,3 +120,4 @@ fn load_desktop_entries() -> Vec<(String, String)> {
 // Fuzzy matching with nucleo-matcher (Pattern + Matcher)
 // Desktop entry parsing with freedesktop-desktop-entry crate
 // Added stable ID format support for board-sync workflow
+// - Test if the sync workflow is working
