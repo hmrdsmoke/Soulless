@@ -127,6 +127,7 @@ fn strip_desktop_placeholders(exec: &str) -> String {
 // - [ISSUE:main-004] Auto-close after launch (classic launcher behavior)
 // - [ISSUE:main-005] Pass position so search bar can be top/bottom
 // - [ISSUE:main-006] Toolbox = long rectangular pop-out window (your exact vision)
+// - [ISSUE:test-001] Test line to see if workflow works
 
 // === DONE ===
 // Single-instance check
