@@ -191,16 +191,28 @@ jobs:
               }
             }
 
-      - name: Commit and push updated issue numbers
+            - name: Commit and push updated issue numbers
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet; then
-            echo "No changes to commit."
+
+          # Stage only tracked Rust files (doesn't error if none match)
+          mapfile -t rs_files < <(git ls-files -- 'src/**/*.rs' 'src/*.rs' || true)
+
+          if [ "${#rs_files[@]}" -eq 0 ]; then
+            echo "No Rust files found to stage."
             exit 0
           fi
-          git add src/**/*.rs src/*.rs || true
+
+          git add -- "${rs_files[@]}"
+
+          # Only commit if Rust files actually changed (ignores status.md)
+          if git diff --cached --quiet; then
+            echo "No Rust changes to commit."
+            exit 0
+          fi
+
           git commit -m "chore: sync issue numbers from code comments [skip ci]"
           git push
