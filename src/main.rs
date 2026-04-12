@@ -4,133 +4,134 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use iced::{widget::container, Element, Length, Theme, Task, window};
-use std::fs::OpenOptions;
-use fs2::FileExt;
+use nucleo_matcher::{Matcher, Config, Utf32String};
+use nucleo_matcher::pattern::{Pattern, CaseMatching, Normalization, AtomKind};
+use freedesktop_desktop_entry::{DesktopEntry, Iter};
+use std::path::Path;
 
-mod search;
-mod drawers;
-mod position;
-
-use search::Message as SearchMessage;
-use position::DockPosition;
-
+#[derive(Clone)]
 pub enum Message {
-    Search(SearchMessage),
-    Close,
+    QueryChanged(String),
+    AppClicked(String),
 }
 
-fn main() -> iced::Result {
-    if !ensure_single_instance() {
-        eprintln!("Soulless is already running — bringing existing instance forward.");
-        return Ok(());
-    }
-
-    let position = DockPosition::BottomLeft;
-    iced::application(Soulless::new, Soulless::update, Soulless::view)
-        .window_size(position.window_size())
-        .position(window::Position::Specific(position.window_position()))
-        .decorations(false)
-        .transparent(false)
-        .resizable(false)
-        .theme(Soulless::theme)
-        .centered()
-        .run()
+pub struct Search {
+    pub query: String,
+    matcher: Matcher,
+    apps: Vec<(String, String, Utf32String)>,
 }
 
-struct Soulless {
-    search: search::Search,
-    position: DockPosition,
-}
+impl Search {
+    pub fn new() -> Self {
+        let mut apps = vec![];
+        let matcher = Matcher::new(Config::DEFAULT);
 
-impl Soulless {
-    fn new() -> (Self, Task<Message>) {
-        let pos = DockPosition::BottomLeft;
-        (Self {
-            search: search::Search::new(),
-            position: pos,
-        }, Task::none())
-    }
+        // Standard desktop file locations
+        let paths = vec![
+            Path::new("/usr/share/applications"),
+            &dirs::home_dir().unwrap_or_default().join(".local/share/applications"),
+        ];
 
-    fn update(&mut self, message: Message) -> Task<Message> {
-        match message {
-            Message::Search(msg) => {
-                if let Some(exec) = self.search.update(msg) {
-                    let clean_exec = strip_desktop_placeholders(&exec);
-                    if let Err(e) = std::process::Command::new("sh")
-                        .arg("-c")
-                        .arg(&clean_exec)
-                        .spawn()
-                    {
-                        eprintln!("Failed to launch {}: {}", clean_exec, e);
-                    } else {
-                        return iced::exit();
+        for base in paths {
+            if base.exists() {
+                for entry in Iter::new(std::iter::once(base.to_path_buf())) {
+                    if let Ok(de) = DesktopEntry::from_path(&entry, None::<&[&str]>) {
+                        if let (Some(name), Some(exec)) = (de.name(&[] as &[&str]), de.exec()) {
+                            let name_str = name.to_string();
+                            let haystack = Utf32String::from(name_str.as_str());
+                            apps.push((name_str, exec.to_string(), haystack));
+                        }
                     }
                 }
-                Task::none()
             }
-            Message::Close => iced::exit(),
+        }
+
+        // Common binary locations for CLI tools
+        let bin_paths = vec![
+            dirs::home_dir().unwrap_or_default().join("bin"),
+            dirs::home_dir().unwrap_or_default().join(".cargo/bin"),
+            Path::new("/usr/local/bin").to_path_buf(),
+            Path::new("/usr/bin").to_path_buf(),
+        ];
+
+        for bin_dir in bin_paths {
+            if bin_dir.exists() {
+                if let Ok(entries) = std::fs::read_dir(&bin_dir) {
+                    for entry in entries.filter_map(|e| e.ok()) {
+                        let path = entry.path();
+                        if path.is_file() {
+                            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                                let name_str = name.to_string();
+                                let haystack = Utf32String::from(name_str.as_str());
+                                let cmd = path.to_string_lossy().to_string();
+                                apps.push((name_str, cmd, haystack));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        apps.sort_by(|a, b| a.0.cmp(&b.0));
+
+        Self {
+            query: String::new(),
+            matcher,
+            apps,
         }
     }
 
-    fn view(&self) -> Element<Message> {
-        drawers::view(&self.search).map(Message::Search)
+    pub fn update(&mut self, message: Message) -> Option<String> {
+        match message {
+            Message::QueryChanged(q) => {
+                self.query = q;
+                None
+            }
+            Message::AppClicked(exec) => Some(exec),
+        }
     }
 
-    fn theme(&self) -> Theme {
-        Theme::Dark
+    pub fn filtered_apps(&self) -> Vec<(String, String)> {
+        if self.query.is_empty() {
+            return self.apps.iter()
+                .take(15)
+                .map(|(n, e, _)| (n.clone(), e.clone()))
+                .collect();
+        }
+
+        let pattern = Pattern::new(
+            &self.query,
+            CaseMatching::Smart,
+            Normalization::Smart,
+            AtomKind::Fuzzy,
+        );
+
+        let mut results: Vec<(u32, usize)> = self.apps.iter()
+            .enumerate()
+            .filter_map(|(i, (_, _, haystack))| {
+                pattern.score(haystack.as_ref(), &mut self.matcher.clone())
+                    .map(|score| (score, i))
+            })
+            .collect();
+
+        results.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+
+        results.into_iter()
+            .take(20)
+            .map(|(_, i)| {
+                let (name, exec, _) = &self.apps[i];
+                (name.clone(), exec.clone())
+            })
+            .collect()
     }
 }
 
-fn ensure_single_instance() -> bool {
-    let data_dir = dirs::data_dir()
-        .unwrap_or_else(|| std::env::temp_dir())
-        .join("soulless");
-    std::fs::create_dir_all(&data_dir).ok();
-
-    let lock_path = data_dir.join("soulless.lock");
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(&lock_path)
-        .unwrap();
-
-    file.try_lock_exclusive().is_ok()
-}
-
-fn strip_desktop_placeholders(exec: &str) -> String {
-    let re = regex::Regex::new(r"%[a-zA-Z]").unwrap();
-    re.replace_all(exec, "").trim().to_string()
-}
-
-// === YOUR ORIGINAL COMMENTS (preserved exactly) ===
-// needed for single-instance lock :: MRV
-// changed .window_position to .position this is the correct method name in iced 0.14 :: MRV
-// borderless = native dock/pop-up feel :: MRV
-// .always_on_top(true) not available in current builder style :: MRV
-// default toolbox position :: MRV
-// auto-close after launch (classic launcher behavior) :: MRV
-// pass position so search bar can be top/bottom :: MRV
-// Toolbox = long rectangular pop-out window (your exact vision) :: MRV
-// click anywhere outside closes (real launcher feel) :: MRV
-// Simple single-instance guard using XDG data dir + exclusive file lock. :: MRV
-
-// === HISTORY ===
-// Single-instance check
-// Placeholder stripping moved to main.rs
-
-// === IN PROGRESS ===
-// - [ISSUE:main-001] Click outside or Esc for launcher feel
-// - [ISSUE:main-002] Borderless = native dock/pop-up feel
-// - [ISSUE:main-003] Default toolbox position (make configurable later)
-// - [ISSUE:main-004] Auto-close after launch (classic launcher behavior)
-// - [ISSUE:main-005] Pass position so search bar can be top/bottom
-// - [ISSUE:main-006] Toolbox = long rectangular pop-out window (your exact vision)
-// - [ISSUE:test-001] Test line to see if workflow works
-
-// === DONE ===
-// Single-instance check
-// Simple single-instance guard using XDG data dir + exclusive file lock
-// Placeholder stripping moved to main.rs
-// test
+// === ALL YOUR ORIGINAL COMMENTS MOVED TO THE BOTTOM (preserved exactly) ===
+ // fixed import syntax :: MRV
+ // changed from freedesktop_desktop_entry:: to freedesktop-desktop-entry 0.8:: :: MRV
+ // use std::path::PathBuf; :: I am not using at moment not sure if I will :: MRV
+ // removed # from start of line :: MRV
+ // locales: empty slice :: MRV
+ // changed from if let Some(name) = entry.name(None) { to if let Some(name) = entry.name(&[] as &[&str]) { : gives local empty slice :: MRV
+ // fixed indexing :: MRV
+ // needs &Utf32Str, not &Utf32String :: MRV
