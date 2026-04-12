@@ -12,23 +12,36 @@ use freedesktop_desktop_entry::{DesktopEntry, Iter};
 pub enum Message {
     QueryChanged(String),
     AppClicked(String),
+    DrawerClicked(String),
+    VaultClicked,
+    SearchBarClicked,
 }
 
 pub struct Search {
     pub query: String,
     matcher: Matcher,
-    apps: Vec<(String, String)>,
+    all_apps: Vec<(String, String)>,
+    drawers: Vec<String>,
+    pub show_search_results: bool,
 }
 
 impl Search {
     pub fn new() -> Self {
         let matcher = Matcher::new(Config::DEFAULT);
-        let apps = load_desktop_entries();
+        let all_apps = load_desktop_entries();
+        let drawers = vec![
+            "Utilities".to_string(),
+            "Daily Apps".to_string(),
+            "Work".to_string(),
+            "Games".to_string(),
+        ];
 
         Self {
             query: String::new(),
             matcher,
-            apps,
+            all_apps,
+            drawers,
+            show_search_results: false,
         }
     }
 
@@ -36,19 +49,38 @@ impl Search {
         match message {
             Message::QueryChanged(q) => {
                 self.query = q;
+                self.show_search_results = true;
                 None
             }
             Message::AppClicked(exec) => Some(exec),
+            Message::DrawerClicked(name) => {
+                println!("Drawer clicked: {}", name);
+                None
+            }
+            Message::VaultClicked => {
+                println!("Vault clicked");
+                None
+            }
+            Message::SearchBarClicked => {
+                self.show_search_results = true;
+                None
+            }
         }
     }
 
     pub fn filtered_apps(&self) -> Vec<(String, String)> {
         if self.query.is_empty() {
-            return self.apps.iter()
-                .take(15)
-                .map(|(n, e)| (n.clone(), e.clone()))
-                .collect();
+            return self.all_apps.clone();
         }
+
+        let prefix = self.query.to_lowercase();
+
+        let mut top: Vec<(String, String)> = self.all_apps.iter()
+            .filter(|(name, _)| name.to_lowercase().starts_with(&prefix))
+            .take(10)
+            .map(|(n, e)| (n.clone(), e.clone()))
+            .collect();
+        top.sort_by(|a, b| a.0.cmp(&b.0));
 
         let pattern = Pattern::new(
             &self.query,
@@ -56,31 +88,41 @@ impl Search {
             Normalization::Smart,
             AtomKind::Fuzzy,
         );
+        let mut matcher = self.matcher.clone();
 
-        let mut results: Vec<(u32, usize)> = self.apps.iter()
+        let mut scored: Vec<(u32, usize)> = self.all_apps.iter()
             .enumerate()
             .filter_map(|(i, (name, _))| {
                 let haystack = Utf32String::from(name.as_str());
-                pattern.score(haystack.as_slice(), &mut self.matcher.clone())
+                pattern.score(haystack.slice(..), &mut matcher)
                     .map(|score| (score, i))
             })
             .collect();
 
-        results.sort_unstable_by(|a, b| b.0.cmp(&a.0));
-        results.into_iter()
-            .take(20)
+        scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
+
+        let mut rest: Vec<(String, String)> = scored.into_iter()
+            .filter(|(_, i)| !top.iter().any(|(n, _)| n == &self.all_apps[*i].0))
             .map(|(_, i)| {
-                let (name, exec) = &self.apps[i];
+                let (name, exec) = &self.all_apps[i];
                 (name.clone(), exec.clone())
             })
-            .collect()
+            .collect();
+
+        top.extend(rest);
+        top
+    }
+
+    pub fn drawers(&self) -> &[String] {
+        &self.drawers
     }
 }
 
 fn load_desktop_entries() -> Vec<(String, String)> {
     let mut apps = vec![];
+
     for entry in Iter::new(freedesktop_desktop_entry::default_paths()) {
-        if let Ok(entry) = DesktopEntry::from_path(&entry, Some(&[] as &[&str])) {
+        if let Ok(entry) = DesktopEntry::from_path(entry, &[] as &[&str]) {
             if let Some(name) = entry.name::<&str>(&[]) {
                 if let Some(exec) = entry.exec() {
                     let name_str = name.to_string();
@@ -89,6 +131,7 @@ fn load_desktop_entries() -> Vec<(String, String)> {
             }
         }
     }
+
     apps.sort_by(|a, b| a.0.cmp(&b.0));
     apps
 }
@@ -98,26 +141,26 @@ fn load_desktop_entries() -> Vec<(String, String)> {
 // removed # from start of line :: MRV
 // fixed indexing :: MRV
 // added for iced 0.14 compatibility :: MRV
-// add helper for search :: approval :: MRV
-
-// === HISTORY ===
-// Added private helper `load_desktop_entries()`
-// Simplified apps storage to (String, String) tuple
-// Different approach: on-the-fly Utf32String only during filtering
-// Fixed all Utf32String method errors (as_slice, as_str, as_utf32str, etc.)
-// Placeholder stripping moved to main.rs
 
 // === IN PROGRESS ===
-// (none - core search functionality is now stable)
+// (none for search.rs right now - core functionality is stable)
 
 // === DONE ===
 // Added private helper `load_desktop_entries()`
 // Simplified apps storage to (String, String) tuple
 // Different approach: on-the-fly Utf32String only during filtering
-// Fixed all Utf32String method errors (as_slice, as_str, as_utf32str, etc.)
+// Fixed all Utf32String method errors (as_slice, as_str, etc.)
 // Placeholder stripping moved to main.rs
-// Message enum derives Clone for iced 0.14 compatibility
-// Fuzzy matching with nucleo-matcher (Pattern + Matcher)
-// Desktop entry parsing with freedesktop-desktop-entry crate
-// Added stable ID format support for board-sync workflow
-// - Test if the sync workflow is working
+// Fixed .slice(..) for nucleo-matcher 0.3
+// Eliminated per-item Matcher clone (reuse single mutable Matcher for zero-cost scoring) :: done
+// Pinned to actual tested version nucleo-matcher = "0.3.1" and freedesktop-desktop-entry = "0.6.2" :: done
+// All Cargo.toml deps now exact versions per Michael's new rule :: done
+// Fixed DesktopEntry::from_path (takes PathBuf, locales = &[]) :: done
+// Changed filtered_apps back to &self + clone Matcher once per query for iced view compatibility :: done
+// Fixed locale type inference with `&[] as &[&str]` for freedesktop-desktop-entry 0.6.2 :: done
+// Implemented exact search behavior: full alpha list on empty, top-10 strict prefix + fuzzy below :: done
+// Separated drawers list from app search per final spec :: done
+// Removed take(50) limit — now returns the complete list of all apps when search drawer opens :: done
+// Simplified search logic — removed fragile skip_while, now clean prefix + fuzzy split :: done
+// Replaced filtered_apps with your exact clean version (full list + prefix top-10 + fuzzy rest) :: done
+// Added SearchBarClicked message to trigger drawer on click :: done
