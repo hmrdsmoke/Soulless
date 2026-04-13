@@ -4,6 +4,7 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
+<<<<<<< HEAD
 use iced::{widget::button, Element, Length, Task, Theme, window};
 use iced::widget::text;
 
@@ -56,4 +57,51 @@ impl DockButton {
 #[derive(Debug, Clone)]
 enum Message {
     Clicked,
+=======
+use iced::{widget::{button, image}, Element, Length, Task, Theme};
+use iced::widget::image::Handle;
+
+#[derive(Debug, Clone)]
+pub enum Message {
+    OpenLauncher,
+}
+
+pub struct DockButton;
+
+impl DockButton {
+    pub fn new() -> (Self, Task<Message>) {
+        (Self, Task::none())
+    }
+
+    pub fn update(&mut self, message: Message) -> Task<Message> {
+        match message {
+            Message::OpenLauncher => {
+                println!("Dock button clicked - Opening Soulless launcher");
+                Task::none()
+            }
+        }
+    }
+
+    pub fn view(&self) -> Element<Message> {
+        button(
+            image(Handle::from_path("assets/icons/launcher.png"))
+                .width(Length::Fixed(36.0))
+                .height(Length::Fixed(36.0))
+        )
+        .width(Length::Fixed(56.0))
+        .height(Length::Fixed(56.0))
+        .style(|_, _| button::Style {
+            background: Some(iced::Color::from_rgb8(255, 215, 0).into()),
+            border: iced::border::rounded(16),
+            shadow: iced::Shadow {
+                color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.5),
+                offset: iced::Vector::new(3.0, 6.0),
+                blur_radius: 12.0,
+            },
+            ..Default::default()
+        })
+        .on_press(Message::OpenLauncher)
+        .into()
+    }
+>>>>>>> c13af7f (feat: add custom button widget + improve drawer layout New button for reuable launcher updated drawers grid to use button Minor main + search cleanups for iced .14 Cargo toml / Cargo lock updates)
 }

@@ -30,7 +30,11 @@ fn main() -> iced::Result {
         return Ok(());
     }
 
+<<<<<<< HEAD
     let position = DockPosition::BottomLeft;
+=======
+    let position = DockPosition::Left;   // Change to Right if you prefer the right side
+>>>>>>> c13af7f (feat: add custom button widget + improve drawer layout New button for reuable launcher updated drawers grid to use button Minor main + search cleanups for iced .14 Cargo toml / Cargo lock updates)
 
     iced::application(Soulless::new, Soulless::update, Soulless::view)
         .subscription(Soulless::subscription)
@@ -50,7 +54,7 @@ struct Soulless {
 
 impl Soulless {
     fn new() -> (Self, Task<Message>) {
-        let pos = DockPosition::BottomLeft;
+        let pos = DockPosition::Left;
         (Self {
             search: search::Search::new(),
             position: pos,
@@ -182,4 +186,9 @@ fn ensure_single_instance() -> bool {
 // Added global subscription for Esc + click-outside handling
 // Fixed Escape key check for iced 0.14 using your exact matches! syntax :: done
 // Added `use dirs;` for dirs::data_dir() :: done
+<<<<<<< HEAD
 // Hooked up DockPosition to drawers::view so side-sliding works :: done
+=======
+// Hooked up DockPosition to drawers::view so side-sliding works :: done
+// Window now docks to Left or Right side correctly :: done
+>>>>>>> c13af7f (feat: add custom button widget + improve drawer layout New button for reuable launcher updated drawers grid to use button Minor main + search cleanups for iced .14 Cargo toml / Cargo lock updates)
