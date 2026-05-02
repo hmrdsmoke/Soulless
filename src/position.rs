@@ -4,63 +4,70 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use iced::{Size, Point};
+use cosmic::cctk::sctk::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer};
+use cosmic::iced::platform_specific::shell::commands::layer_surface::get_layer_surface;
+use cosmic::iced::platform_specific::runtime::wayland::layer_surface::SctkLayerSurfaceSettings;
+use cosmic::iced::runtime::core::layout::Limits;
+use cosmic::iced::{window, Task};
+use crate::Message;
 
-// use std::path::PathBuf; I am not using at moment not sure if I will :: MRV
-
-/// Where the dock button lives — determines window position and drawer slide direction.
-/// This makes Soulless feel like a native panel/dock launcher on Pop!_OS.
-/// MRV: User can later configure this via settings drawer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DockPosition {
-    Left,   // launcher docks to left side
-    Right,  // launcher docks to right side
+pub enum SurfaceState {
+    Hidden,
+    Visible,
 }
 
-impl DockPosition {
-    /// Returns the window size (fixed for now — easy to make configurable later)
-    pub fn window_size(&self) -> Size {
-        Size::new(460.0, 720.0)
-    }
+pub struct Position {
+    pub window_id: window::Id,
+    pub state: SurfaceState,
+}
 
-    /// Calculates ideal top-left position so the window "pops out" from the dock button area.
-    pub fn window_position(&self) -> Point {
-        let Size { width, height } = self.window_size();
-        let margin = 10.0;
-
-        // Simple fallback for now (can be improved with real monitor detection later)
-        let screen_w = 1920.0;
-        let screen_h = 1080.0;
-
-        match self {
-            DockPosition::Left => Point::new(margin, (screen_h - height) / 2.0),   // centered vertically on left
-            DockPosition::Right => Point::new(screen_w - width - margin, (screen_h - height) / 2.0),
+impl Position {
+    pub fn new() -> Self {
+        Self {
+            window_id: window::Id::unique(),
+            state: SurfaceState::Hidden,
         }
     }
 
-    /// Which direction the drawer content should slide in.
-    pub fn slide_direction(&self) -> SlideDirection {
-        match self {
-            DockPosition::Left => SlideDirection::Right,  // drawer slides out to the right
-            DockPosition::Right => SlideDirection::Left,  // drawer slides out to the left
-        }
+    pub fn show(&mut self) -> Task<Message> {
+        self.state = SurfaceState::Visible;
+        get_layer_surface(SctkLayerSurfaceSettings {
+            id: self.window_id,
+            layer: Layer::Top,
+            keyboard_interactivity: KeyboardInteractivity::Exclusive,
+            anchor: Anchor::LEFT | Anchor::BOTTOM,
+            namespace: "soulless-menu".into(),
+            size: Some((Some(320), Some(620))),
+            size_limits: Limits::NONE.min_height(400.0).max_height(620.0),
+            exclusive_zone: 0,
+            margin: cosmic::iced::platform_specific::runtime::wayland::layer_surface::IcedMargin {
+                bottom: 80,
+                ..Default::default()
+            },
+        })
     }
-}
 
-#[derive(Debug, Clone, Copy)]
-pub enum SlideDirection {
-    Left,
-    Right,
+    pub fn hide(&mut self) -> Task<Message> {
+        self.state = SurfaceState::Hidden;
+        // destroy_layer_surface logic can be added here later
+        Task::none()
+    }
+
+    pub fn window_size(&self) -> iced::Size {
+        iced::Size::new(460.0, 720.0)
+    }
+
+    pub fn window_position(&self) -> iced::Point {
+        // Adjust these values based on your preferred dock position
+        iced::Point::new(20.0, 200.0)
+    }
 }
 
 // === YOUR ORIGINAL COMMENTS (preserved exactly) ===
 // use std::path::PathBuf; I am not using at moment not sure if I will :: MRV
-
-// === IN PROGRESS ===
 // real monitor geometry detection (winit/wayland) :: working
 // configurable dock position via settings :: working
-
-// === DONE ===
-// Basic Left/Right positions with centered vertical placement :: done
-// slide_direction() returns correct direction for side slide :: done
-// window_position() now uses simple screen size instead of hardcoded 2560x1440 :: done
+// Basic Left position with centered vertical placement :: done
+// === IN PROGRESS ===
+// real monitor geometry detection (winit/wayland) :: in progress
+// configurable dock position via settings :: in progress
