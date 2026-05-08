@@ -4,14 +4,14 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use iced::widget::{button, column, container, row, scrollable, text, text_input, space};
-use iced::{Color, Element, Length};
-use crate::search::Message as SearchMessage;
 use crate::position::DockPosition;
+use crate::search::Message as SearchMessage;
+use iced::widget::{button, column, container, row, scrollable, space, text, text_input};
+use iced::{Color, Element, Length};
 
 pub fn view<'a>(
     search: &'a crate::search::Search,
-    position: &'a DockPosition,
+    _position: &'a DockPosition,
 ) -> Element<'a, SearchMessage> {
     let search_bar = text_input("Click here to search all apps...", &search.query)
         .on_input(SearchMessage::QueryChanged)
@@ -21,30 +21,28 @@ pub fn view<'a>(
     // Main toolbox - pinned drawers + vault (fixed 460px width)
     let main_toolbox = column![
         container(search_bar).padding(16),
-        column(
-            search.drawers().iter().map(|name| {
-                button(
-                    row![
-                        text("📁").size(18),
-                        space::horizontal().width(Length::Fixed(12.0)),
-                        text(name.clone()).size(16),
-                        space::horizontal().width(Length::Fill),
-                        text("→").size(14)
-                    ]
-                    .align_y(iced::alignment::Vertical::Center)
-                    .padding(14)
-                )
-                .width(Length::Fill)
-                .height(Length::Fixed(58.0))
-                .style(|_theme, _status| button::Style {
-                    background: Some(Color::from_rgb8(40, 40, 45).into()),
-                    border: iced::border::rounded(8),
-                    ..Default::default()
-                })
-                .on_press(SearchMessage::DrawerClicked(name.clone()))
-                .into()
+        column(search.drawers().iter().map(|name| {
+            button(
+                row![
+                    text("📁").size(18),
+                    space::horizontal().width(Length::Fixed(12.0)),
+                    text(name.clone()).size(16),
+                    space::horizontal().width(Length::Fill),
+                    text("→").size(14)
+                ]
+                .align_y(iced::alignment::Vertical::Center)
+                .padding(14),
+            )
+            .width(Length::Fill)
+            .height(Length::Fixed(58.0))
+            .style(|_theme, _status| button::Style {
+                background: Some(Color::from_rgb8(40, 40, 45).into()),
+                border: iced::border::rounded(8),
+                ..Default::default()
             })
-        )
+            .on_press(SearchMessage::DrawerClicked(name.clone()))
+            .into()
+        }))
         .spacing(6),
         container(
             button(
@@ -74,29 +72,27 @@ pub fn view<'a>(
     // Search drawer - slides out to the side
     let search_drawer: Element<'a, SearchMessage> = if search.show_search_results {
         let results = scrollable(
-            column(
-                search.filtered_apps().into_iter().map(|(name, exec)| {
-                    button(
-                        row![
-                            text(name).size(16),
-                            space::horizontal().width(Length::Fill),
-                            text("→").size(14)
-                        ]
-                        .align_y(iced::alignment::Vertical::Center)
-                        .padding(12)
-                    )
-                    .width(Length::Fill)
-                    .height(Length::Fixed(52.0))
-                    .style(|_theme, _status| button::Style {
-                        background: Some(Color::from_rgb8(35, 35, 40).into()),
-                        border: iced::border::rounded(6),
-                        ..Default::default()
-                    })
-                    .on_press(SearchMessage::AppClicked(exec))
-                    .into()
+            column(search.filtered_apps().into_iter().map(|(name, exec)| {
+                button(
+                    row![
+                        text(name).size(16),
+                        space::horizontal().width(Length::Fill),
+                        text("→").size(14)
+                    ]
+                    .align_y(iced::alignment::Vertical::Center)
+                    .padding(12),
+                )
+                .width(Length::Fill)
+                .height(Length::Fixed(52.0))
+                .style(|_theme, _status| button::Style {
+                    background: Some(Color::from_rgb8(35, 35, 40).into()),
+                    border: iced::border::rounded(6),
+                    ..Default::default()
                 })
-            )
-            .spacing(4)
+                .on_press(SearchMessage::AppClicked(exec))
+                .into()
+            }))
+            .spacing(4),
         )
         .height(Length::Fill);
 

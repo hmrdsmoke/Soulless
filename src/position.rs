@@ -4,12 +4,16 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
+// src/position.rs
+
 use cosmic::cctk::sctk::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer};
-use cosmic::iced::platform_specific::shell::commands::layer_surface::get_layer_surface;
 use cosmic::iced::platform_specific::runtime::wayland::layer_surface::SctkLayerSurfaceSettings;
-use cosmic::iced::runtime::core::layout::Limits;
-use cosmic::iced::{window, Task};
+use cosmic::iced::platform_specific::shell::commands::layer_surface::get_layer_surface;
+use cosmic::iced::{Task, window};
+use cosmic::iced::advanced::layout::Limits;
 use crate::Message;
+
+pub enum DockPosition { Left, Right }
 
 pub enum SurfaceState {
     Hidden,
@@ -21,14 +25,19 @@ pub struct Position {
     pub state: SurfaceState,
 }
 
-impl Position {
-    pub fn new() -> Self {
-        Self {
-            window_id: window::Id::unique(),
-            state: SurfaceState::Hidden,
+impl DockPosition {
+    pub fn window_size(&self) -> iced::Size {
+        iced::Size::new(460.0, 720.0)
+    }
+    pub fn window_position(&self) -> iced::Point {
+        match self {
+            DockPosition::Left => iced::Point::new(20.0, 200.0),
+            DockPosition::Right => iced::Point::new(1500.0, 200.0),
         }
     }
+}
 
+impl Position {
     pub fn show(&mut self) -> Task<Message> {
         self.state = SurfaceState::Visible;
         get_layer_surface(SctkLayerSurfaceSettings {
@@ -40,6 +49,8 @@ impl Position {
             size: Some((Some(320), Some(620))),
             size_limits: Limits::NONE.min_height(400.0).max_height(620.0),
             exclusive_zone: 0,
+            input_zone: Default::default(),
+            output: Default::default(),
             margin: cosmic::iced::platform_specific::runtime::wayland::layer_surface::IcedMargin {
                 bottom: 80,
                 ..Default::default()

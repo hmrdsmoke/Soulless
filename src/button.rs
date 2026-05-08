@@ -4,8 +4,11 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use iced::{widget::{button, image}, Element, Length, Task};
 use iced::widget::image::Handle;
+use iced::{
+    Element, Length, Task,
+    widget::{button, image},
+};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -32,7 +35,7 @@ impl LauncherButton {
         button(
             image(Handle::from_path("assets/icons/launcher.png"))
                 .width(Length::Fixed(36.0))
-                .height(Length::Fixed(36.0))
+                .height(Length::Fixed(36.0)),
         )
         .width(Length::Fixed(56.0))
         .height(Length::Fixed(56.0))

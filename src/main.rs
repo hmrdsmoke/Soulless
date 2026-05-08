@@ -4,20 +4,22 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use iced::{widget::container, Element, Length, Theme, Task, window, keyboard, event, Subscription};
-use iced::keyboard::key::Named;
-use std::fs::OpenOptions;
-use fs2::FileExt;
-use std::path::PathBuf;
 use dirs;
+use fs2::FileExt;
+use iced::keyboard::key::Named;
+use iced::{
+    Element, Length, Subscription, Task, Theme, event, keyboard, widget::container, window,
+};
+use std::fs::OpenOptions;
+use std::path::PathBuf;
 
-mod search;
+mod button;
 mod drawers;
 mod position;
-mod launcher_button;
+mod search;
 
-use search::Message as SearchMessage;
 use position::DockPosition;
+use search::Message as SearchMessage;
 
 pub enum Message {
     Search(SearchMessage),
@@ -51,10 +53,13 @@ struct Soulless {
 impl Soulless {
     fn new() -> (Self, Task<Message>) {
         let pos = DockPosition::Left;
-        (Self {
-            search: search::Search::new(),
-            position: pos,
-        }, Task::none())
+        (
+            Self {
+                search: search::Search::new(),
+                position: pos,
+            },
+            Task::none(),
+        )
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
@@ -62,16 +67,22 @@ impl Soulless {
             Message::Search(msg) => {
                 if let Some(exec) = self.search.update(msg) {
                     let clean_exec = strip_desktop_placeholders(&exec);
-                    let _ = std::process::Command::new("sh")
+                    if let Err(e) = std::process::Command::new("sh")
                         .arg("-c")
                         .arg(&clean_exec)
-                        .spawn();
+                        .spawn()
+                    {
+                        eprintln!("Failed to launch app: {}", e);
+                    }
                     Task::none()
                 } else {
                     Task::none()
                 }
             }
-            Message::WindowEvent(iced::Event::Keyboard(keyboard::Event::KeyPressed { key, .. })) => {
+            Message::WindowEvent(iced::Event::Keyboard(keyboard::Event::KeyPressed {
+                key,
+                ..
+            })) => {
                 if matches!(key, keyboard::Key::Named(Named::Escape)) {
                     iced::exit()
                 } else {
@@ -83,8 +94,7 @@ impl Soulless {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let content = drawers::view(&self.search, &self.position)
-            .map(Message::Search);
+        let content = drawers::view(&self.search, &self.position).map(Message::Search);
 
         container(content)
             .width(Length::Fill)
@@ -111,7 +121,10 @@ fn strip_desktop_placeholders(exec: &str) -> String {
     let mut chars = exec.chars().peekable();
     while let Some(c) = chars.next() {
         if c == '%' {
-            if chars.peek().map_or(false, |&next| next.is_ascii_alphabetic()) {
+            if chars
+                .peek()
+                .map_or(false, |&next| next.is_ascii_alphabetic())
+            {
                 chars.next();
                 continue;
             }
@@ -132,6 +145,7 @@ fn ensure_single_instance() -> bool {
 
     if let Ok(file) = OpenOptions::new().write(true).create(true).open(&lock_path) {
         if file.try_lock_exclusive().is_ok() {
+            Box::leak(Box::new(file)); // Keep lock alive for process lifetime
             return true;
         }
     }

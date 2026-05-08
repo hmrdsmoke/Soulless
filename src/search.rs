@@ -4,9 +4,10 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use nucleo_matcher::{Matcher, Config, Utf32String};
-use nucleo_matcher::pattern::{Pattern, CaseMatching, Normalization, AtomKind};
-use freedesktop_desktop_entry::{DesktopEntry, Iter};
+use freedesktop_desktop_entry::DesktopEntry;
+use nucleo_matcher::pattern::{AtomKind, CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Config, Matcher, Utf32String};
+use std::fs;
 
 #[derive(Clone)]
 pub enum Message {
@@ -17,7 +18,7 @@ pub enum Message {
     SearchBarClicked,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum OpenDrawer {
     None,
     Search,
@@ -83,7 +84,9 @@ impl Search {
     /// Returns ALL apps when search is empty
     pub fn filtered_apps(&self) -> Vec<(String, String)> {
         if self.query.is_empty() {
-            return self.all_apps.iter()
+            return self
+                .all_apps
+                .iter()
                 .map(|(n, e, _)| (n.clone(), e.clone()))
                 .collect();
         }
@@ -91,11 +94,14 @@ impl Search {
         let prefix = self.query.to_lowercase();
 
         // Top 10: strict prefix matches, sorted alphabetically
-        let mut top: Vec<(String, String)> = self.all_apps.iter()
+        let top: Vec<(String, String)> = self
+            .all_apps
+            .iter()
             .filter(|(name, _, _)| name.to_lowercase().starts_with(&prefix))
             .take(10)
             .map(|(n, e, _)| (n.clone(), e.clone()))
             .collect();
+        let mut top = top;
         top.sort_by(|a, b| a.0.cmp(&b.0));
 
         // Fuzzy search for the rest
@@ -108,18 +114,22 @@ impl Search {
             );
             let mut matcher = self.matcher.clone();
 
-            let mut scored: Vec<(u32, usize)> = self.all_apps.iter()
+            let mut scored: Vec<(u32, usize)> = self
+                .all_apps
+                .iter()
                 .enumerate()
                 .filter_map(|(i, (name, _, _))| {
                     let haystack = Utf32String::from(name.as_str());
-                    pattern.score(haystack.slice(..), &mut matcher)
+                    pattern
+                        .score(haystack.slice(..), &mut matcher)
                         .map(|score| (score, i))
                 })
                 .collect();
 
             scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
 
-            let mut rest: Vec<(String, String)> = scored.into_iter()
+            let rest: Vec<(String, String)> = scored
+                .into_iter()
                 .filter(|(_, i)| !top.iter().any(|(n, _)| n == &self.all_apps[*i].0))
                 .take(40)
                 .map(|(_, i)| {
@@ -143,7 +153,9 @@ impl Search {
     }
 
     pub fn get_app_by_index(&self, index: usize) -> Option<(String, String)> {
-        self.all_apps.get(index).map(|(n, e, _)| (n.clone(), e.clone()))
+        self.all_apps
+            .get(index)
+            .map(|(n, e, _)| (n.clone(), e.clone()))
     }
 }
 
@@ -153,18 +165,25 @@ fn load_desktop_entries() -> Vec<(String, String, Utf32String)> {
     let dirs = [
         "/usr/share/applications",
         "/usr/local/share/applications",
-        &format!("{}/.local/share/applications", dirs::home_dir().unwrap_or_default().display()),
+        &format!(
+            "{}/.local/share/applications",
+            dirs::home_dir().unwrap_or_default().display()
+        ),
     ];
 
     for dir in dirs {
-        if let Ok(entries) = Iter::new(std::path::Path::new(dir)) {
+        if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
-                if let Ok(desktop) = DesktopEntry::from_path(entry, &[] as &[&str]) {
-                    if let Some(name) = desktop.name(&[]) {
-                        if let Some(exec) = desktop.exec() {
-                            let clean_exec = crate::strip_desktop_placeholders(exec);
-                            let haystack = Utf32String::from(name.as_str());
-                            apps.push((name.to_string(), clean_exec, haystack));
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("desktop") {
+                    if let Ok(desktop) = DesktopEntry::from_path::<&str>(path, &[]) {
+                        if let Some(name) = desktop.name::<&str>(&[]) {
+                            if let Some(exec) = desktop.exec() {
+                                let clean_exec = crate::strip_desktop_placeholders(exec);
+                                let name_str = name.to_string();
+                                let haystack = Utf32String::from(name_str.as_str());
+                                apps.push((name_str, clean_exec, haystack));
+                            }
                         }
                     }
                 }
