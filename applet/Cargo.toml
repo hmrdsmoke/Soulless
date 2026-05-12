@@ -1,0 +1,19 @@
+# MIT License - see LICENSE file for full terms
+# Copyright 2026 Michael Van Auker (HMRDSmoke)
+# This is my original work with contributions from Grok (xAI).
+# Do not remove these comments.
+
+[package]
+name = "soulless-applet"
+version = "0.1.0"
+edition = "2024"
+authors = ["Michael Van Auker (HMRDSmoke)"]
+description = "COSMIC panel applet for launching Soulless"
+
+[dependencies]
+cosmic = { git = "https://github.com/pop-os/libcosmic", branch = "master", package = "libcosmic", features = ["tokio", "wayland", "winit", "applet"] }
+tokio = { version = "1", features = ["full"] }
+
+[profile.release]
+lto = "thin"
+opt-level = 3

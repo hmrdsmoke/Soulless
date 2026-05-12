@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Soulless Applet
+Comment=Panel applet for the Soulless launcher
+Exec=soulless-applet
+Icon=io.github.hmrdsmoke.Soulless
+Type=Application
+Categories=GNOME;COSMIC;Utility;
+X-COSMIC-Applet=true
