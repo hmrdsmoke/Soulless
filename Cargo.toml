@@ -4,21 +4,20 @@
 # Do not remove these comments.
 
 [package]
-name = "Soulless"
+name = "Soulless-Launcher"
 version = "0.1.0"
 edition = "2024"
 authors = ["Michael Van Auker (HMRDSmoke)"]
-description = "Soulless — The replacement app launcher for Cosmic"
+description = "The replacement app launcher for Cosmic"
 
 [dependencies]
-iced = { version = "0.14.0", features = ["wayland", "tokio" , "image"] }
 # Frozen exact versions — do not touch without full re-test (per Michael's directive)
 nucleo-matcher = "0.3.1"                    # tested against this exact version :: MRV
 freedesktop-desktop-entry = "0.6.2"         # tested against this exact version :: MRV
 
 dirs = "5.0.1"                              # pinned exact :: MRV
 fs2 = "0.4.3"                               # pinned exact :: MRV
-cosmic = { git = "https://github.com/pop-os/libcosmic", branch = "master", package = "libcosmic", features = ["wayland"] }
+cosmic = { git = "https://github.com/pop-os/libcosmic", branch = "master", package = "libcosmic", features = ["tokio", "wayland", "winit"] }
 
 # Vault security (temporarily commented out)
 # argon2 = "0.5.3"                            # pinned exact :: MRV

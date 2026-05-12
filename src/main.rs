@@ -4,37 +4,35 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use dirs;
-use fs2::FileExt;
-use iced::keyboard::key::Named;
-use iced::{
+use cosmic::iced::keyboard::key::Named;
+use cosmic::iced::{
     Element, Length, Subscription, Task, Theme, event, keyboard, widget::container, window,
 };
+use fs2::FileExt;
 use std::fs::OpenOptions;
 use std::path::PathBuf;
 
-mod button;
 mod drawers;
 mod position;
 mod search;
 
-use position::DockPosition;
+use position::LauncherPosition;
 use search::Message as SearchMessage;
 
 pub enum Message {
     Search(SearchMessage),
-    WindowEvent(iced::Event),
+    WindowEvent(cosmic::iced::Event),
 }
 
-fn main() -> iced::Result {
+fn main() -> cosmic::iced::Result {
     if !ensure_single_instance() {
-        eprintln!("Soulless is already running — bringing existing instance forward.");
+        eprintln!("Soulless is already running.");
         return Ok(());
     }
 
-    let position = DockPosition::Left; // Change to Right if you prefer
+    let position = LauncherPosition;
 
-    iced::application(Soulless::new, Soulless::update, Soulless::view)
+    cosmic::iced::application(Soulless::new, Soulless::update, Soulless::view)
         .subscription(Soulless::subscription)
         .window_size(position.window_size())
         .position(window::Position::Specific(position.window_position()))
@@ -47,16 +45,13 @@ fn main() -> iced::Result {
 
 struct Soulless {
     search: search::Search,
-    position: DockPosition,
 }
 
 impl Soulless {
     fn new() -> (Self, Task<Message>) {
-        let pos = DockPosition::Left;
         (
             Self {
                 search: search::Search::new(),
-                position: pos,
             },
             Task::none(),
         )
@@ -79,12 +74,11 @@ impl Soulless {
                     Task::none()
                 }
             }
-            Message::WindowEvent(iced::Event::Keyboard(keyboard::Event::KeyPressed {
-                key,
-                ..
-            })) => {
+            Message::WindowEvent(cosmic::iced::Event::Keyboard(
+                keyboard::Event::KeyPressed { key, .. },
+            )) => {
                 if matches!(key, keyboard::Key::Named(Named::Escape)) {
-                    iced::exit()
+                    cosmic::iced::exit()
                 } else {
                     Task::none()
                 }
@@ -94,14 +88,14 @@ impl Soulless {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let content = drawers::view(&self.search, &self.position).map(Message::Search);
+        let content = drawers::view(&self.search).map(Message::Search);
 
         container(content)
             .width(Length::Fill)
             .height(Length::Fill)
             .style(|_| container::Style {
-                background: Some(iced::Color::from_rgb8(30, 30, 30).into()),
-                border: iced::border::rounded(8),
+                background: Some(cosmic::iced::Color::from_rgb8(30, 30, 30).into()),
+                border: cosmic::iced::border::rounded(8),
                 ..Default::default()
             })
             .into()

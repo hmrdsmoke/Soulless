@@ -4,21 +4,20 @@
 // This is my original work with contributions from Grok (xAI).
 // Do not remove these comments.
 
-use crate::position::DockPosition;
 use crate::search::Message as SearchMessage;
-use iced::widget::{button, column, container, row, scrollable, space, text, text_input};
-use iced::{Color, Element, Length};
+use crate::search::OpenDrawer;
+use cosmic::iced::widget::{button, column, container, row, scrollable, space, text, text_input};
+use cosmic::iced::{Color, Element, Length};
 
-pub fn view<'a>(
-    search: &'a crate::search::Search,
-    _position: &'a DockPosition,
-) -> Element<'a, SearchMessage> {
+const TOOLBOX_WIDTH: f32 = 360.0;
+const RIGHT_PANEL_WIDTH: f32 = 560.0;
+
+pub fn view<'a>(search: &'a crate::search::Search) -> Element<'a, SearchMessage> {
     let search_bar = text_input("Click here to search all apps...", &search.query)
         .on_input(SearchMessage::QueryChanged)
         .padding(16)
         .size(18);
 
-    // Main toolbox - pinned drawers + vault (fixed 460px width)
     let main_toolbox = column![
         container(search_bar).padding(16),
         column(search.drawers().iter().map(|name| {
@@ -30,14 +29,14 @@ pub fn view<'a>(
                     space::horizontal().width(Length::Fill),
                     text("→").size(14)
                 ]
-                .align_y(iced::alignment::Vertical::Center)
+                .align_y(cosmic::iced::alignment::Vertical::Center)
                 .padding(14),
             )
             .width(Length::Fill)
             .height(Length::Fixed(58.0))
             .style(|_theme, _status| button::Style {
                 background: Some(Color::from_rgb8(40, 40, 45).into()),
-                border: iced::border::rounded(8),
+                border: cosmic::iced::border::rounded(8),
                 ..Default::default()
             })
             .on_press(SearchMessage::DrawerClicked(name.clone()))
@@ -51,14 +50,14 @@ pub fn view<'a>(
                     space::horizontal().width(Length::Fixed(12.0)),
                     text("Vault (Secure Folder)").size(16)
                 ]
-                .align_y(iced::alignment::Vertical::Center)
-                .padding(14)
+                .align_y(cosmic::iced::alignment::Vertical::Center)
+                .padding(14),
             )
             .width(Length::Fill)
             .height(Length::Fixed(68.0))
             .style(|_theme, _status| button::Style {
                 background: Some(Color::from_rgb8(28, 28, 38).into()),
-                border: iced::border::rounded(8),
+                border: cosmic::iced::border::rounded(8),
                 ..Default::default()
             })
             .on_press(SearchMessage::VaultClicked)
@@ -66,50 +65,109 @@ pub fn view<'a>(
         .padding(16)
     ]
     .spacing(8)
-    .width(Length::Fixed(460.0))
+    .width(Length::Fixed(TOOLBOX_WIDTH))
     .height(Length::Fill);
 
-    // Search drawer - slides out to the side
-    let search_drawer: Element<'a, SearchMessage> = if search.show_search_results {
-        let results = scrollable(
-            column(search.filtered_apps().into_iter().map(|(name, exec)| {
-                button(
-                    row![
-                        text(name).size(16),
-                        space::horizontal().width(Length::Fill),
-                        text("→").size(14)
-                    ]
-                    .align_y(iced::alignment::Vertical::Center)
-                    .padding(12),
-                )
-                .width(Length::Fill)
-                .height(Length::Fixed(52.0))
-                .style(|_theme, _status| button::Style {
-                    background: Some(Color::from_rgb8(35, 35, 40).into()),
-                    border: iced::border::rounded(6),
-                    ..Default::default()
-                })
-                .on_press(SearchMessage::AppClicked(exec))
-                .into()
-            }))
-            .spacing(4),
-        )
-        .height(Length::Fill);
+    let right_panel_content: Element<'a, SearchMessage> = if search.show_search_results {
+        let results = search.filtered_apps();
 
-        row![
-            main_toolbox,
-            space::horizontal().width(Length::Fixed(12.0)),
-            results
-        ]
-        .spacing(0)
-        .width(Length::Shrink)
-        .height(Length::Fill)
-        .into()
+        if results.is_empty() {
+            container(text("No apps found").size(16))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
+                .into()
+        } else {
+            let app_list = results
+                .iter()
+                .take(200)
+                .filter_map(|&index| search.app(index))
+                .fold(column!().spacing(6), |col, app| {
+                    col.push(
+                        button(text(truncate_label(&app.name, 42)).size(16))
+                            .width(Length::Fill)
+                            .padding(10)
+                            .style(|_theme, _status| button::Style {
+                                background: Some(Color::from_rgb8(35, 35, 40).into()),
+                                border: cosmic::iced::border::rounded(8),
+                                ..Default::default()
+                            })
+                            .on_press(SearchMessage::AppClicked(app.exec.clone())),
+                    )
+                });
+
+            container(scrollable(container(app_list).padding([0, 12, 0, 0])))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+        }
     } else {
-        main_toolbox.into()
+        match &search.current_open_drawer {
+            OpenDrawer::Pinned(name) => container(
+                column![
+                    text(format!("Drawer: {name}")).size(24),
+                    text("Pinned drawer content goes here.").size(16),
+                ]
+                .spacing(12),
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .into(),
+
+            OpenDrawer::Vault => container(
+                column![
+                    text("Vault").size(24),
+                    text("Vault UI goes here.").size(16),
+                ]
+                .spacing(12),
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .into(),
+
+            OpenDrawer::Search => container(text("Search or select a drawer").size(18))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
+                .into(),
+        }
     };
 
-    search_drawer
+    let right_panel = container(right_panel_content)
+        .width(Length::Fixed(RIGHT_PANEL_WIDTH))
+        .height(Length::Fill)
+        .padding(16)
+        .style(|_| container::Style {
+            background: Some(Color::from_rgb8(24, 24, 28).into()),
+            border: cosmic::iced::border::rounded(8),
+            ..Default::default()
+        });
+
+    row![
+        main_toolbox,
+        space::horizontal().width(Length::Fixed(12.0)),
+        right_panel
+    ]
+    .spacing(0)
+    .width(Length::Shrink)
+    .height(Length::Fill)
+    .into()
+}
+
+fn truncate_label(name: &str, max_chars: usize) -> String {
+    let count = name.chars().count();
+    if count <= max_chars {
+        return name.to_string();
+    }
+
+    let truncated: String = name.chars().take(max_chars.saturating_sub(1)).collect();
+    format!("{truncated}…")
 }
 
 // === YOUR ORIGINAL COMMENTS (preserved exactly) ===
